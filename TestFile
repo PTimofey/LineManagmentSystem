@@ -1,0 +1,45 @@
+{   "departments": [
+        {
+            "name": "reception",
+            "employees": 2
+        },
+        {
+            "name": "loans",
+            "employees": 3
+        },
+        {
+            "name": "deposits",
+            "employees": 1
+        }],
+    "clients": [
+        {
+            "name": "John Doe",
+            "time": 270,
+            "priority": 1,
+            "departments": [
+            "reception",
+            "loans",
+            "deposits"
+        ]
+        },
+        {
+            "name": "Jane Smith",
+            "time": 100,
+            "priority": 3,
+            "departments": [
+            "reception",
+            "deposits"
+        ]
+        },
+        {
+            "name": "Robert Polson",
+            "time": 200,
+            "priority": 1,
+            "departments": [
+            "deposits",
+            "reception",
+            "deposits" ]
+        }
+        
+    ]
+}
