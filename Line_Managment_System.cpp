@@ -1,12 +1,9 @@
 #include <cstddef>
-#include <cstdlib>
 #include<iostream>
 #include <memory>
-#include <pstl/glue_algorithm_defs.h>
 #include <sstream>
 #include<string>
 #include<queue>
-#include <type_traits>
 #include <utility>
 #include<vector>
 #include<thread>
@@ -115,7 +112,7 @@ public:
         
         if((EmployedEmployees<CountEmployees))
         {
-            for(int i=0; i!=(CountEmployees-EmployedEmployees);i++)
+            for(int i=0; i<(CountEmployees-EmployedEmployees);i++)
             {
                 if(!QueueOfClients.empty())
                 {
