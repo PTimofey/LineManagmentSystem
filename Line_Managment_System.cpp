@@ -17,18 +17,20 @@
 #include <algorithm>
 
 std::mutex coutMutex;
-std::mutex queue;
+
+
+// Function for getting the time
 std::string GetTime()
 {
-   // Получаем текущее время с миллисекундами
+   // We get the current time with milliseconds
     auto now = std::chrono::system_clock::now();
     auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
 
-    // Преобразуем время в формат std::time_t для вывода даты и времени
+    // Convert the time to the std::time_t format to display the date and time
     std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* localTime = std::localtime(&now_time_t);
 
-    // Используем строковый поток для форматирования строки
+    // We use a string stream to format a string
     std::ostringstream oss;
     oss << (localTime->tm_year + 1900) << '-'
         << std::setw(2) << std::setfill('0') << (localTime->tm_mon + 1) << '-'
@@ -38,34 +40,46 @@ std::string GetTime()
         << std::setw(2) << std::setfill('0') << localTime->tm_sec << '.'
         << std::setw(3) << std::setfill('0') << milliseconds.count();
 
-    // Возвращаем строку
+    // return string
     return oss.str();
     
 }
 
 
-
+// The class for storing information about the client
 class Client
 {
 public:
     Client(std::string name, std::queue<std::string> sequence, unsigned int time, unsigned int priority) : ClientName(name), SequenceOfDepartments(sequence), SpendTime(time), PriorityOfClient(priority){}
     
     
-
+    // Name of client
     std::string ClientName;
+
+    // list of departments that the client should visit
     std::queue<std::string> SequenceOfDepartments;
+    // Service Time
     unsigned int SpendTime;
+    // Client priority in the service queue 
     unsigned int PriorityOfClient;
     
+    // operator overload = for priority_queue
     bool operator < (const Client& otherClient) const
     {
         return PriorityOfClient < otherClient.PriorityOfClient;
     }
+
+    // operator overload for client comparison
     bool operator==(const Client& other) const 
     {
     return (ClientName == other.ClientName && SpendTime == other.SpendTime && PriorityOfClient == other.PriorityOfClient && SequenceOfDepartments == other.SequenceOfDepartments);
     }
 };
+
+
+
+
+// The class for servicing the client queue
 class Department
 {
 public:
@@ -74,35 +88,32 @@ public:
           NameOfDepartment(std::move(name)), 
           ClientsAreNotInQueue(std::make_unique<std::vector<Client>>()) 
     {
-        EmployedEmployees=0;
+        BusyEmployees=0;
     }
     
-    Department(const Department&) = delete;             // Запрещаем копирование
-    Department& operator=(const Department&) = delete;  // Запрещаем присваивание
+    Department(const Department&) = delete;             // ban of copying
+    Department& operator=(const Department&) = delete;  // ban of assignment
 
-    Department(Department&&) = default;                 // Разрешаем перемещение
-    Department& operator=(Department&&) = default;      // Разрешаем присваивание перемещением
+    Department(Department&&) = default;                 // allow movement
+    Department& operator=(Department&&) = default;      // allow assignment by movement
     
 
-
+    // Method in which the employee serves the client
     void MaintenanceWindow(Client CurrentClient) 
     {
         {
             std::lock_guard<std::mutex> lock(coutMutex);
-            EmployedEmployees++;
+            BusyEmployees++;
             std::cout << '[' << GetTime() << "] Client " << CurrentClient.ClientName << " is served by the department "<< CurrentClient.SequenceOfDepartments.front() << "\n";
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(CurrentClient.SpendTime));
         {
 
             std::lock_guard<std::mutex> lock(coutMutex);
-            // Вместо удаления клиента, перемещаем его из ClientsServed в ClientsAreNotInQueue
-            //auto it = std::find(clients.begin(), clients.end(), CurrentClient);
             std::cout << '[' << GetTime() << "] Client " << CurrentClient.ClientName << " left the department "<< CurrentClient.SequenceOfDepartments.front() << "\n";
             CurrentClient.SequenceOfDepartments.pop();
             ClientsAreNotInQueue->push_back(CurrentClient);
-            EmployedEmployees--;
-            //clients.erase(it); // Удаляем из ClientsServed после перемещения 
+            BusyEmployees--;
               
         }
     }
@@ -110,9 +121,9 @@ public:
     void ClientService()
     {   
         
-        if((EmployedEmployees<CountEmployees))
+        if((BusyEmployees<CountEmployees))
         {
-            for(int i=0; i<(CountEmployees-EmployedEmployees);i++)
+            for(int i=0; i<(CountEmployees-BusyEmployees);i++)
             {
                 if(!QueueOfClients.empty())
                 {
@@ -125,29 +136,35 @@ public:
         }
     }
 
+    // Streams that serve clients
     std::vector<std::thread> employees;
-    std::shared_ptr<std::vector<Client>> ClientsAreNotInQueue;  // Now using unique_ptr for unique ownership
+
+    // pointer to FreeClients
+    std::shared_ptr<std::vector<Client>> ClientsAreNotInQueue;  
+    
     std::string NameOfDepartment;
+
+    // queue for service by priority
     std::priority_queue<Client> QueueOfClients;
 
 private:
+
     const size_t CountEmployees;
-    size_t EmployedEmployees;
-    //std::mutex queueMutex;
+
+    size_t BusyEmployees;
 };
 
 
+// The class in which departments serve customers
 class Bank
 {
 public:
-    //Bank(const Bank &) = delete;
-    //Bank& operator=(const Bank &)=delete;
-
     Bank(std::vector<Client>&& Clients, std::vector<Department>&& Departments_)
     : FreeClients(std::make_shared<std::vector<Client>>(std::move(Clients))), Departments(std::move(Departments_))
     {
-
         CountOfClients = FreeClients->size();
+
+        // Here each department gets access to FreeClients
         for (auto &i : Departments)
         {
             
@@ -160,7 +177,7 @@ public:
         }
     }
 
-    
+    // distribution of clients by departments
     void CustomerDistribution()
     {
         
@@ -174,7 +191,6 @@ public:
                 
                 NameToDepartment[it->SequenceOfDepartments.front()]->QueueOfClients.push(*it);
                 
-                // Удаляем клиента из FreeClients, после добавления его в QueueOfClients
                 it = FreeClients->erase(it);
             }
             else
@@ -187,7 +203,7 @@ public:
     }
 
 
-
+    // The main method
     void WorkDayOfBank()
     {
         std::cout<<'['<<GetTime()<<']'<<" Bank opened\n";
@@ -224,9 +240,14 @@ public:
 
     
     unsigned int CountOfClients;
+
+    // clients awaiting their distribution by department
     std::shared_ptr<std::vector<Client>> FreeClients;
 private:
+
     std::vector<Department> Departments;
+
+    // It helps to easily find the right department to send the client to the queue
     std::map<std::string, Department*> NameToDepartment;
     
 
@@ -235,7 +256,13 @@ private:
 
 int main(int argc, char *argv[])
 {
-    
+    // check for parameters
+    if(argc<2)
+    {
+        std::cerr<<"no required parameters\n";
+        exit(1);
+    }
+
     std::stringstream Data;
     std::ifstream StreamOfData(argv[1]);
     std::string Line;
@@ -247,6 +274,8 @@ int main(int argc, char *argv[])
     std::vector<Client> clients;
     std::vector<Department> departments;
 
+
+    //Converting JSON data into arrays of clients and departments
     rapidjson::Document d;
     d.Parse(Data.str().data());
     if (d.HasMember("clients") && d["clients"].IsArray())
@@ -258,8 +287,6 @@ int main(int argc, char *argv[])
         {
             Department CurrentDepartment(Value_departments[i]["employees"].GetInt(), Value_departments[i]["name"].GetString());
             departments.push_back(std::move(CurrentDepartment));
-            //departments.emplace_back(Value_departments[i]["employees"].GetInt(), Value_departments[i]["name"].GetString());
-
         }
 
         for (rapidjson::SizeType i = 0; i < Value_clients.Size(); i++)
@@ -274,7 +301,7 @@ int main(int argc, char *argv[])
         }
     }
 
-
+    
     Bank TheBank(std::move(clients), std::move(departments));
     
     TheBank.WorkDayOfBank();
