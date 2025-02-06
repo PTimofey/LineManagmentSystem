@@ -15,6 +15,9 @@
 #include <iomanip>
 #include<mutex>
 #include <algorithm>
+#include<atomic>
+#include<future>
+
 
 std::mutex coutMutex;
 
@@ -76,9 +79,6 @@ public:
     }
 };
 
-
-
-
 // The class for servicing the client queue
 class Department
 {
@@ -128,9 +128,9 @@ public:
                 if(!QueueOfClients.empty())
                 {
                     
-                    employees.emplace_back([this](Client client) {MaintenanceWindow(client);}, QueueOfClients.top());
+                    auto HandleOfClient = std::async(std::launch::async, [this](Client client) {MaintenanceWindow(client);},QueueOfClients.top());
                     QueueOfClients.pop();
-                    employees.back().detach();
+                    
                 }
             }
         }
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    
+
     Bank TheBank(std::move(clients), std::move(departments));
     
     TheBank.WorkDayOfBank();
